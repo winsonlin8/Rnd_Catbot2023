@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>sensors</name>
-  <version>0.0.1</version> <!-- Update the version -->
+  <version>0.0.2</version>
   <description>Quadruped catbot sensors and motor control package</description>
   <maintainer email="wl85@rice.edu">winsonl8</maintainer>
   <license>MIT</license>
@@ -17,14 +17,13 @@
   <exec_depend>tf2_ros</exec_depend> <!-- For transform-related operations -->
   <exec_depend>tf2_geometry_msgs</exec_depend> <!-- For TF2 geometry messages -->
 
-  <!-- ODrive specific dependencies -->
-  <exec_depend>odrive_ros</exec_depend> <!-- If using an ODrive ROS package -->
-  <exec_depend>pyodrive</exec_depend> <!-- Python library for ODrive -->
-
   <!-- Additional dependencies for sensor interfacing -->
   <exec_depend>python3-gpiozero</exec_depend> <!-- If using GPIO Zero library -->
   <exec_depend>python3-rpi.gpio</exec_depend> <!-- If using RPi.GPIO library -->
   <exec_depend>python3-smbus</exec_depend> <!-- For I2C communication, e.g., MPU-6050 -->
+
+  <!-- ODrive specific dependencies -->
+  <!-- Ensure the ODrive Python library is installed in Python environment -->
 
   <!-- Test dependencies -->
   <test_depend>ament_lint_auto</test_depend>
