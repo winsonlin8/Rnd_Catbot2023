@@ -15,8 +15,8 @@ class ODriveDualBoardNode(Node):
         super().__init__('odrive_dual_board_node')
 
         # Find the connected ODrives
-        self.odrv0 = self.find_odrive_by_serial("<ODRIVE_SERIAL_NUMBER_0>")
-        self.odrv1 = self.find_odrive_by_serial("<ODRIVE_SERIAL_NUMBER_1>")
+        self.odrv0 = self.find_odrive_by_serial("394d357c3231")
+        self.odrv1 = self.find_odrive_by_serial("3956355f3231")
 
         # Calibrate motors and set to closed loop control mode
         self.setup_motor(self.odrv0.axis0)
@@ -64,8 +64,8 @@ def main(args=None):
     rclpy.spin(odrive_node)
 
     # Clean up and shutdown
-    odrive_node.set_motor_velocity(odrive_node.odrv0.axis0, 0)
-    odrive_node.set_motor_velocity(odrive_node.odrv1.axis0, 0)
+    odrive_node.set_motor_velocity(odrive_node.odrv0.axis0, 5)
+    odrive_node.set_motor_velocity(odrive_node.odrv1.axis0, 5)
     odrive_node.odrv0.axis0.requested_state = AXIS_STATE_IDLE
     odrive_node.odrv1.axis0.requested_state = AXIS_STATE_IDLE
     odrive_node.destroy_node()
