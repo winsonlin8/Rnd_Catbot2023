@@ -1,56 +1,75 @@
 #!/usr/bin/env python3
 
-import RPi.GPIO as GPIO
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Int32
+
+import odrive
+from odrive.enums import *
 import time
+import math
+import fibre
 
-# Set the GPIO numbering mode
-GPIO.setmode(GPIO.BCM)
+class ODriveDualBoardNode(Node):
+    def __init__(self):
+        super().__init__('odrive_dual_board_node')
 
-# Set up a GPIO channel (replace 18 with whatever GPIO pin you're using)
-ESC_GPIO_PIN = 18  # This pin will send the PWM signal to the ESC
-GPIO.setup(ESC_GPIO_PIN, GPIO.OUT)
+        # Find the connected ODrives
+        self.odrv0 = self.find_odrive_by_serial("<ODRIVE_SERIAL_NUMBER_0>")
+        self.odrv1 = self.find_odrive_by_serial("<ODRIVE_SERIAL_NUMBER_1>")
 
-# Set the PWM frequency and initialize it
-pwm_frequency = 50  # Typical PWM frequency for ESCs
-pwm = GPIO.PWM(ESC_GPIO_PIN, pwm_frequency)
-pwm.start(0)
+        # Calibrate motors and set to closed loop control mode
+        self.setup_motor(self.odrv0.axis0)
+        self.setup_motor(self.odrv1.axis0)
 
-# Helper function to set motor speed
-def set_motor_speed(speed_percent):
-    if speed_percent < 0 or speed_percent > 100:
-        print("Invalid speed percent. Please choose a value between 0 and 100.")
-        return
+        # Create subscribers for each motor
+        self.velocity_subscriber_odrv0 = self.create_subscription(
+            Int32,
+            'motor_velocity_odrv0',
+            lambda msg: self.velocity_callback(msg, self.odrv0.axis0),
+            10)
+        self.velocity_subscriber_odrv1 = self.create_subscription(
+            Int32,
+            'motor_velocity_odrv1',
+            lambda msg: self.velocity_callback(msg, self.odrv1.axis0),
+            10)
 
-    # Map the speed percentage to the PWM duty cycle needed for the ESC
-    # Note: These values should be calibrated for the  specific ESC
-    duty_cycle = (speed_percent / 100.0) * (12.0 - 7.0) + 7.0
-    pwm.ChangeDutyCycle(duty_cycle)
+    def find_odrive_by_serial(self, serial_number):
+        context = fibre.USBContext()
+        for device in context.get_device_list():
+            if device.serial_number == serial_number:
+                return odrive.find_any(serial_number=serial_number)
+        self.get_logger().error(f"ODrive with serial {serial_number} not found")
+        return None
 
-try:
-    # Initialization: ESCs usually need to be initialized with a 0 (stop) signal
-    set_motor_speed(0)
-    print("Initializing ESC. Wait for 2 seconds.")
-    time.sleep(2)
+    def setup_motor(self, axis):
+        self.get_logger().info("Calibrating motor...")
+        axis.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
+        while axis.current_state != AXIS_STATE_IDLE:
+            time.sleep(0.1)
+        axis.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+        axis.controller.config.control_mode = CONTROL_MODE_VELOCITY
+        self.get_logger().info("Motor setup complete.")
 
-    # Example usage: Run the motor from 0% to 100% and back to 0%
-    for speed in range(0, 101, 10):
-        print(f"Setting speed to {speed}%")
-        set_motor_speed(speed)
-        time.sleep(1)
+    def set_motor_velocity(self, axis, velocity):
+        axis.controller.vel_setpoint = velocity
 
-    for speed in range(100, -1, -10):
-        print(f"Setting speed to {speed}%")
-        set_motor_speed(speed)
-        time.sleep(1)
+    def velocity_callback(self, msg, axis):
+        self.get_logger().info(f"Setting velocity to {msg.data}")
+        self.set_motor_velocity(axis, msg.data)
 
-    # Finally, stop the motor
-    set_motor_speed(0)
-    print("Stopping motor.")
+def main(args=None):
+    rclpy.init(args=args)
+    odrive_node = ODriveDualBoardNode()
+    rclpy.spin(odrive_node)
 
-except KeyboardInterrupt:
-    # Graceful exit on Ctrl+C
-    pass
+    # Clean up and shutdown
+    odrive_node.set_motor_velocity(odrive_node.odrv0.axis0, 0)
+    odrive_node.set_motor_velocity(odrive_node.odrv1.axis0, 0)
+    odrive_node.odrv0.axis0.requested_state = AXIS_STATE_IDLE
+    odrive_node.odrv1.axis0.requested_state = AXIS_STATE_IDLE
+    odrive_node.destroy_node()
+    rclpy.shutdown()
 
-# Clean up GPIO on normal exit
-pwm.stop()
-GPIO.cleanup()
+if __name__ == '__main__':
+    main()
