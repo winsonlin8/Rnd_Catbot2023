@@ -10,28 +10,21 @@ import time
 import math
 import fibre
 
-class ODriveDualBoardNode(Node):
+class ODriveNode(Node):
     def __init__(self):
-        super().__init__('odrive_dual_board_node')
+        super().__init__('odrive_node')
 
-        # Find the connected ODrives
+        # Find the connected ODrive
         self.odrv0 = self.find_odrive_by_serial("394d357c3231")
-        self.odrv1 = self.find_odrive_by_serial("3956355f3231")
 
-        # Calibrate motors and set to closed loop control mode
+        # Calibrate motor and set to closed loop control mode
         self.setup_motor(self.odrv0.axis0)
-        self.setup_motor(self.odrv1.axis0)
 
-        # Create subscribers for each motor
+        # Create subscriber for the motor
         self.velocity_subscriber_odrv0 = self.create_subscription(
             Int32,
             'motor_velocity_odrv0',
             lambda msg: self.velocity_callback(msg, self.odrv0.axis0),
-            10)
-        self.velocity_subscriber_odrv1 = self.create_subscription(
-            Int32,
-            'motor_velocity_odrv1',
-            lambda msg: self.velocity_callback(msg, self.odrv1.axis0),
             10)
 
     def find_odrive_by_serial(self, serial_number):
@@ -60,14 +53,12 @@ class ODriveDualBoardNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    odrive_node = ODriveDualBoardNode()
+    odrive_node = ODriveNode()
     rclpy.spin(odrive_node)
 
     # Clean up and shutdown
-    odrive_node.set_motor_velocity(odrive_node.odrv0.axis0, 5)
-    odrive_node.set_motor_velocity(odrive_node.odrv1.axis0, 5)
+    odrive_node.set_motor_velocity(odrive_node.odrv0.axis0, 0)
     odrive_node.odrv0.axis0.requested_state = AXIS_STATE_IDLE
-    odrive_node.odrv1.axis0.requested_state = AXIS_STATE_IDLE
     odrive_node.destroy_node()
     rclpy.shutdown()
 
